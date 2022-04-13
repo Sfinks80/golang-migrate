@@ -7,7 +7,7 @@ import (
 
 	"log"
 
-	"github.com/golang-migrate/migrate/v4"
+	"github.com/Sfinks80/golang-migrate/v4"
 	"io"
 	"os"
 	"strconv"
@@ -23,9 +23,9 @@ import (
 )
 
 import (
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	"github.com/golang-migrate/migrate/v4/dktesting"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	dt "github.com/Sfinks80/golang-migrate/v4/database/testing"
+	"github.com/Sfinks80/golang-migrate/v4/dktesting"
+	_ "github.com/Sfinks80/golang-migrate/v4/source/file"
 )
 
 var (
@@ -222,7 +222,7 @@ func TestLockWorks(t *testing.T) {
 		}
 
 		// enable locking,
-		//try to hit a lock conflict
+		// try to hit a lock conflict
 		mc.config.Locking.Enabled = true
 		mc.config.Locking.Timeout = 1
 		err = mc.Lock()
@@ -255,7 +255,7 @@ func TestTransaction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//rs.initiate()
+		// rs.initiate()
 		err = client.Database("admin").RunCommand(context.TODO(), bson.D{bson.E{Key: "replSetInitiate", Value: bson.D{}}}).Err()
 		if err != nil {
 			t.Fatal(err)
@@ -275,9 +275,9 @@ func TestTransaction(t *testing.T) {
 				t.Error(err)
 			}
 		}()
-		//We have to create collection
-		//transactions don't support operations with creating new dbs, collections
-		//Unique index need for checking transaction aborting
+		// We have to create collection
+		// transactions don't support operations with creating new dbs, collections
+		// Unique index need for checking transaction aborting
 		insertCMD := []byte(`[
 				{"create":"hello"},
 				{"createIndexes": "hello",
@@ -313,8 +313,8 @@ func TestTransaction(t *testing.T) {
 			},
 			{
 				name: "failure transaction",
-				//transaction have to be failure - duplicate unique key wild:west
-				//none of the documents should be added
+				// transaction have to be failure - duplicate unique key wild:west
+				// none of the documents should be added
 				cmds: []byte(`[{"insert":"hello","documents":[{"wild":"flower"}]},
 									{"insert":"hello","documents":[
 										{"wild":"cat"},
@@ -382,9 +382,9 @@ func waitForReplicaInit(client *mongo.Client) error {
 		select {
 		case <-ticker.C:
 			var status isMaster
-			//Check that node is primary because
-			//during replica set initialization, the first node first becomes a secondary and then becomes the primary
-			//should consider that initialization is completed only after the node has become the primary
+			// Check that node is primary because
+			// during replica set initialization, the first node first becomes a secondary and then becomes the primary
+			// should consider that initialization is completed only after the node has become the primary
 			result := client.Database("admin").RunCommand(context.TODO(), bson.D{bson.E{Key: "isMaster", Value: 1}})
 			r, err := result.DecodeBytes()
 			if err != nil {

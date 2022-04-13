@@ -1,12 +1,3 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/golang-migrate/migrate/CI/master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
-[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
-[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
-[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
-[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.16%2C%201.17-lightgrey.svg)
-[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate)](https://goreportcard.com/report/github.com/golang-migrate/migrate)
-
 # migrate
 
 __Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
@@ -17,7 +8,7 @@ __Database migrations written in Go. Use as [CLI](#cli-usage) or import as [libr
    (Keeps the drivers lightweight, too.)
 * Database drivers don't assume things or try to correct user input. When in doubt, fail.
 
-Forked from [mattes/migrate](https://github.com/mattes/migrate)
+Forked from [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 
 ## Databases
 
@@ -108,13 +99,11 @@ $ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
 * Uses `io.Reader` streams internally for low memory overhead.
 * Thread-safe and no goroutine leaks.
 
-__[Go Documentation](https://godoc.org/github.com/golang-migrate/migrate)__
-
 ```go
 import (
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/github"
+    "github.com/Sfinks80/golang-migrate/v4"
+    _ "github.com/Sfinks80/golang-migrate/v4/database/postgres"
+    _ "github.com/Sfinks80/golang-migrate/v4/source/github"
 )
 
 func main() {
@@ -131,9 +120,9 @@ Want to use an existing database client?
 import (
     "database/sql"
     _ "github.com/lib/pq"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
+    "github.com/Sfinks80/golang-migrate/v4"
+    "github.com/Sfinks80/golang-migrate/v4/database/postgres"
+    _ "github.com/Sfinks80/golang-migrate/v4/source/file"
 )
 
 func main() {
@@ -167,14 +156,6 @@ Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-file
 ```
 
 [Best practices: How to write migrations.](MIGRATIONS.md)
-
-## Versions
-
-Version | Supported? | Import | Notes
---------|------------|--------|------
-**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
-**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
 
 ## Development and Contributing
 
