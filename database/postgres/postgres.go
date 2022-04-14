@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	nurl "net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -168,7 +170,7 @@ func (p *Postgres) Open(url string) (database.Driver, error) {
 	if s := purl.Query().Get("x-migrations-table-quoted"); len(s) > 0 {
 		migrationsTableQuoted, err = strconv.ParseBool(s)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to parse option x-migrations-table-quoted: %w", err)
+			return nil, fmt.Errorf("unable to parse option x-migrations-table-quoted: %w", err)
 		}
 	}
 	if (len(migrationsTable) > 0) && (migrationsTableQuoted) && ((migrationsTable[0] != '"') || (migrationsTable[len(migrationsTable)-1] != '"')) {
@@ -199,7 +201,7 @@ func (p *Postgres) Open(url string) (database.Driver, error) {
 	if s := purl.Query().Get("x-multi-statement"); len(s) > 0 {
 		multiStatementEnabled, err = strconv.ParseBool(s)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to parse option x-multi-statement: %w", err)
+			return nil, fmt.Errorf("unable to parse option x-multi-statement: %w", err)
 		}
 	}
 
@@ -232,7 +234,7 @@ func (p *Postgres) Close() error {
 	return nil
 }
 
-// https://www.postgresql.org/docs/9.6/static/explicit-locking.html#ADVISORY-LOCKS
+// Lock https://www.postgresql.org/docs/9.6/static/explicit-locking.html#ADVISORY-LOCKS
 func (p *Postgres) Lock() error {
 	return database.CasRestoreOnErr(&p.isLocked, false, true, database.ErrLocked, func() error {
 		aid, err := database.GenerateAdvisoryLockId(p.config.DatabaseName, p.config.migrationsSchemaName, p.config.migrationsTableName)
@@ -278,46 +280,87 @@ func (p *Postgres) Run(migration io.Reader) error {
 		}
 		return err
 	}
-	migr, err := ioutil.ReadAll(migration)
+	m, err := ioutil.ReadAll(migration)
 	if err != nil {
 		return err
 	}
-	return p.runStatement(migr)
+	return p.runStatement(m)
 }
 
+var envRE = regexp.MustCompile(`#{\s*(?:identifier|literal):MIGRATIONS_[A-Z_\d]*\s*}`)
+
 func (p *Postgres) runStatement(statement []byte) error {
+	statement = envRE.ReplaceAllFunc(statement, replaceEnv)
+	query := strings.Trim(string(statement), "\n;")
+	if strings.TrimSpace(query) == "" {
+		return nil
+	}
+
+	st := time.Now().UnixMicro()
+	log.Println("==================================================")
+	log.Println(query)
+
 	ctx := context.Background()
 	if p.config.StatementTimeout != 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, p.config.StatementTimeout)
 		defer cancel()
 	}
-	query := string(statement)
-	if strings.TrimSpace(query) == "" {
+
+	_, err := p.conn.ExecContext(ctx, query)
+
+	log.Printf("============== finished in %.3f ms ==============\n\n", float64(time.Now().UnixMicro()-st)/1e3)
+	if err == nil {
 		return nil
 	}
-	if _, err := p.conn.ExecContext(ctx, query); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
-			var line uint
-			var col uint
-			var lineColOK bool
-			if pgErr.Position != "" {
-				if pos, err := strconv.ParseUint(pgErr.Position, 10, 64); err == nil {
-					line, col, lineColOK = computeLineFromPos(query, int(pos))
-				}
-			}
-			message := fmt.Sprintf("migration failed: %s", pgErr.Message)
-			if lineColOK {
-				message = fmt.Sprintf("%s (column %d)", message, col)
-			}
-			if pgErr.Detail != "" {
-				message = fmt.Sprintf("%s, %s", message, pgErr.Detail)
-			}
-			return database.Error{OrigErr: err, Err: message, Query: statement, Line: line}
-		}
+
+	pgErr, ok := err.(*pq.Error)
+	if !ok {
 		return database.Error{OrigErr: err, Err: "migration failed", Query: statement}
 	}
-	return nil
+
+	var line uint
+	var col uint
+	var lineColOK bool
+	if pgErr.Position != "" {
+		if pos, err := strconv.ParseUint(pgErr.Position, 10, 64); err == nil {
+			line, col, lineColOK = computeLineFromPos(query, int(pos))
+		}
+	}
+	message := fmt.Sprintf("migration failed: %s", pgErr.Message)
+	if lineColOK {
+		message = fmt.Sprintf("%s (column %d)", message, col)
+	}
+	if pgErr.Detail != "" {
+		message = fmt.Sprintf("%s, %s", message, pgErr.Detail)
+	}
+	return database.Error{OrigErr: err, Err: message, Query: statement, Line: line}
+}
+
+func replaceEnv(b []byte) []byte {
+	s := string(b)
+	s = strings.TrimSpace(s[2 : len(s)-1])
+	if s == "" {
+		return b
+	}
+
+	parts := strings.SplitN(s, ":", 2)
+
+	s = os.Getenv(parts[1])
+	if s == "" {
+		panic("os.env '" + parts[1] + "' is not set")
+	}
+
+	switch parts[0] {
+	case "identifier":
+		s = pq.QuoteIdentifier(s)
+	case "literal":
+		s = pq.QuoteLiteral(s)
+	default:
+		panic("os.env '" + parts[1] + "' have invalid type: '" + parts[0] + "'")
+	}
+
+	return []byte(s)
 }
 
 func computeLineFromPos(s string, pos int) (line uint, col uint, ok bool) {
